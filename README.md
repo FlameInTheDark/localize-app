@@ -1,130 +1,138 @@
-# Localize Desktop
+# Localize
 
-Windows desktop translation and OCR workspace built with Go, Wails v2, React,
-Tailwind v4, and shadcn-style UI primitives. It keeps the four Localize flows:
-text translation/detection, document translation, image translation, and OCR
-extraction, without retaining a translation history.
+Localize is a private-first desktop workspace for translating text, documents,
+and images with models that run on your own computer. It is built for the
+moments when copying sensitive text into a web translator is not an option—or
+when you simply want to choose the model that does the work.
 
-It can use either a user-managed Ollama server or a Localize-managed llama.cpp
-server running only on `127.0.0.1`. llama.cpp models are public GGUF files
-downloaded directly from Hugging Face into `%LocalAppData%\Localize\models`.
-Speech input is handled by a user-installed whisper.cpp runtime and a selected
-local Whisper model; microphone recordings and live speech stay on the device.
+![Localize text translation workspace](docs/screenshot.png)
 
-## Quick start
+## What it does
 
-Prerequisites: Go 1.26+, Wails v2, Bun, and Windows 10/11 x64.
+- Translates text, detects its language, and lets you replace a translated word
+  or phrase with contextual alternatives without translating the whole text
+  again.
+- Extracts and translates text from PDF, EPUB, MOBI, DOCX, XLSX, and PPTX
+  files. Scanned pages can fall back to local vision OCR.
+- Translates text in images and extracts text through a separate OCR workspace.
+- Supports Ollama as well as a Localize-managed llama.cpp server, so models can
+  come from Ollama or public Hugging Face GGUF repositories.
+- Adds local speech input through whisper.cpp: record from a selected
+  microphone, transcribe an audio file, or insert live speech into the editor.
+- Keeps translation content out of a history database. Temporary input files,
+  rendered pages, and recordings are cleaned up after the active operation.
+
+Localize is a Windows 10/11 x64 application. Native runtimes and model weights
+are deliberately not shipped with the installer: choose exactly what you need
+from Settings after the app is installed.
+
+## Download
+
+Download the latest Windows x64 executable or NSIS installer from the
+[GitHub Releases page](https://github.com/FlameInTheDark/localize-app/releases).
+After launching Localize, choose and install the inference runtimes and models
+you want in Settings; they are not included with the application download.
+
+## Build from source
+
+To develop Localize yourself, install Go 1.26+, Bun, and a Windows WebView2
+runtime. Then clone and start the app:
 
 ```powershell
-cd H:\Projects\Go\src\github.com\FlameInTheDark\localize-app
+git clone https://github.com/FlameInTheDark/localize-app.git
+cd localize-app
 bun --cwd frontend install
-wails dev
+go run github.com/wailsapp/wails/v2/cmd/wails@v2.12.0 dev
 ```
 
-For text translation with the default provider, install and start Ollama, then
-use **Settings → Catalog** to open its official catalog and pull
-`translategemma:latest`. Pull `glm-ocr:latest` for image/document OCR.
+### Choose an inference provider
 
-## Provider setup
+For the quickest start, install and run [Ollama](https://ollama.com/), then
+open **Settings → Models** in Localize and pull a translation model such as
+`translategemma:latest`. Pull a vision-capable model separately if you want to
+use image translation or OCR.
 
-### Ollama
+If you prefer GGUF models, open **Settings → Runtime** to install a selected
+llama.cpp CPU or CUDA version. In **Settings → Models**, choose where GGUF
+files should live, find a public Hugging Face model, download it, and assign it
+as the translation model. Vision models also need their compatible `mmproj`
+projection file.
 
-- Default endpoint: `http://127.0.0.1:11434`.
-- The app talks only to Ollama's documented local endpoints for health, local
-  model lists, generation, and streamed pulls.
-- The catalog is intentionally opened in the browser; Localize does not scrape
-  an undocumented remote catalog API.
+You can switch between Ollama and llama.cpp at any time. Localize starts only
+the llama.cpp processes it owns, listens on loopback, and stops them when the
+app closes.
 
-### llama.cpp + Hugging Face
+### Recommended models
 
-- In **Settings → Runtime**, select an official llama.cpp version and install its
-  CPU runtime (and optionally the matching CUDA runtime). The server is stored
-  in `%LocalAppData%\Localize\runtime\llama.cpp`, not beside the app, so this
-  works identically in development and in installed builds.
-- In **Settings → Models**, choose the local directory for GGUF files, search
-  public Hugging Face repositories, select a model file, and optionally select
-  a matching `mmproj` projection for OCR.
-- The app verifies a resumable partial download before atomically publishing it
-  to the selected model directory. The install UI reports bytes transferred,
-  live download speed, and an estimated remaining time.
-- `Auto` runtime mode tries an installed CUDA server only when `nvidia-smi` is
-  available. A failed CUDA readiness probe falls back to the installed CPU server. You
-  can force CPU or CUDA from Settings.
+These are the models currently used during Localize development. They make a
+good local-first starting point and are not included with the app download.
 
-### Whisper.cpp speech input
+| Use | Ollama | llama.cpp / whisper.cpp |
+| --- | --- | --- |
+| Text translation | `translategemma:latest` (3.3 GB) | [`translategemma-4b-it.Q8_0.gguf`](https://huggingface.co/mradermacher/translategemma-4b-it-GGUF) (3.8 GiB) |
+| Image and document OCR | `glm-ocr:latest` (2.2 GB) | [`GLM-OCR-Q8_0.gguf`](https://huggingface.co/ggml-org/GLM-OCR-GGUF) with its matching `mmproj` file (about 1.3 GiB together) |
+| Speech input | — | `ggml-large-v3-turbo.bin` (1.5 GiB) |
 
-- In **Settings → Runtime**, install an official whisper.cpp CPU runtime and,
-  optionally, its CUDA runtime. The selected version lives under
-  `%LocalAppData%\Localize\runtime\whisper.cpp`.
-- In **Settings → Speech**, choose a model directory, download an official
-  multilingual Whisper model, select the model and spoken-language policy, and
-  choose a microphone after granting Windows microphone permission.
-- The **Voice** control in Text opens recording/upload. **Live** transcribes
-  detected speech phrases into the text editor at the caret without translating
-  automatically. Localize accepts WAV, MP3, FLAC, and OGG input files.
+For llama.cpp vision/OCR, always download the model and its matching `mmproj`
+projection file. If your hardware needs a smaller model, choose another public
+GGUF or Whisper model in Settings and assign it to the same role.
 
-## Document support
+### Speech and documents
 
-PDF, EPUB, MOBI, DOCX, XLSX, and PPTX are extracted as ordered text sections.
-When no embedded text exists, MuPDF renders pages and the configured vision/OCR
-model reads them. Results remain original/translation text pairs; Localize does
-not generate reconstructed Office or PDF files.
+Voice input is optional. Install a chosen whisper.cpp version under
+**Settings → Runtime**, then select an official Whisper model and microphone in
+**Settings → Speech**. The **Voice** button records or accepts WAV, MP3, FLAC,
+and OGG files; **Live** inserts completed speech into the current text editor.
 
-Before document translation, open **Settings → Runtime**, choose an official
-MuPDF Windows version, install it, select the installed version, and save the
-settings. MuPDF is stored under `%LocalAppData%\Localize\runtime\mupdf`; it is
-not included in the installer.
+Document translation needs MuPDF. Pick and install an official MuPDF Windows
+version from **Settings → Runtime** before translating documents. Localize
+returns aligned source and translated text; it does not rebuild the original
+PDF or Office layout.
 
-## Development checks
+## Privacy and downloads
+
+Configured inference stays local: Ollama is contacted on its local endpoint,
+and llama.cpp runs on `127.0.0.1`. Localize only uses the network when you ask
+it to download a runtime or model, or when you choose a provider that uses one.
+Runtime and model downloads show progress, speed, and remaining time, are
+resumable where upstream supports it, and are published atomically after
+validation.
+
+## Development
+
+Run the checks used by the Windows verification workflow:
 
 ```powershell
 go vet ./...
 go test -race ./...
 bun --cwd frontend run check
 bun --cwd frontend run build
-wails build -debug
 ```
 
-The tests cover provider contracts, prompt/language handling, settings atomicity
-and migration, and local model-store safety.
+Build a production executable with:
 
-## Windows installer release
+```powershell
+go run github.com/wailsapp/wails/v2/cmd/wails@v2.12.0 build
+```
 
-No native runtime is bundled in the installer. llama.cpp, whisper.cpp, and
-MuPDF are explicitly selected and installed by the user after launch. Build an
-NSIS package with:
+To build the NSIS installer instead:
 
 ```powershell
 .\scripts\build-installer.ps1
 ```
 
-See [licenses/THIRD_PARTY_NOTICES.md](licenses/THIRD_PARTY_NOTICES.md) for the
-runtime source and licensing information.
+## Releases
 
-## GitHub Actions releases
+Pull requests and pushes to `main` run the Windows frontend and Go checks.
+Conventional commits on `main` create semantic releases: `feat:` creates a
+minor release, `fix:` creates a patch release, and a breaking change creates a
+major release. The release workflow attaches both the Windows executable and
+the NSIS installer. Runtimes and models remain user-installed rather than
+release assets.
 
-Pull requests and pushes to `main` run the Windows verification workflow:
-frontend typechecking/building plus Go vet and race-enabled tests. A push to
-`main` that follows Conventional Commits creates a semantic GitHub release:
-`feat:` releases a minor version, `fix:` releases a patch version, and a
-breaking change releases the next major version. The release-assets workflow
-then builds and attaches `Localize-<version>-windows-amd64.exe` and the NSIS
-installer. Native runtimes remain user-installed and are not release assets.
+## Project notes
 
-## Architecture
-
-The Wails-bound `Desktop` service is deliberately thin. Domain workflows depend
-on narrow interfaces rather than Wails, HTTP, or child-process code:
-
-- `inference.Client`: health, model listing, and text/vision generation.
-- `runtime.LlamaManager`: Localize-owned loopback llama.cpp lifecycle.
-- `runtime.WhisperRunner`: short-lived local whisper-cli transcription process.
-- `catalog.HuggingFace` and `catalog.LocalModels`: discovery, validated model
-  downloads, and local model management.
-- `translation.Service` and `documents.Extractor`: shared prompts, chunking,
-  extraction, and OCR fallback.
-- `operations.Hub`: one typed Wails progress-event contract.
-
-Settings are atomically stored in `%LocalAppData%\Localize\settings.json`.
-Source documents, rendered pages, and images are held only for the active
-operation and are cleaned up afterward.
+The architecture is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+See [LICENSE](LICENSE) for Localize's license and
+[licenses/THIRD_PARTY_NOTICES.md](licenses/THIRD_PARTY_NOTICES.md) for the
+licenses and sources of third-party components.
