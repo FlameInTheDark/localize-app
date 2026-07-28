@@ -37,14 +37,14 @@ func Open(path string, format domain.LocalizationFormat) (domain.LocalizationFil
 	if err != nil {
 		return domain.LocalizationFile{}, nil, err
 	}
-	if !utf8.Valid(stripBOM(data)) {
-		return domain.LocalizationFile{}, nil, fmt.Errorf("localization files must be UTF-8 encoded")
-	}
 	if format == "" || format == domain.LocalizationFormatAuto {
 		format, err = DetectFormat(path)
 		if err != nil {
 			return domain.LocalizationFile{}, nil, err
 		}
+	}
+	if format != domain.LocalizationFormatSourceKeyValues && !utf8.Valid(stripBOM(data)) {
+		return domain.LocalizationFile{}, nil, fmt.Errorf("localization files must be UTF-8 encoded")
 	}
 	doc, err := parse(format, data)
 	if err != nil {

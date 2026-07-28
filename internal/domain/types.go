@@ -329,17 +329,19 @@ type LocalizationFile struct {
 }
 
 type LocalizationTranslationRequest struct {
-	OperationID string             `json:"operationId"`
-	Path        string             `json:"path"`
-	Format      LocalizationFormat `json:"format"`
-	Fingerprint string             `json:"fingerprint"`
-	Language    string             `json:"language"`
-	EntryIDs    []string           `json:"entryIds"`
+	OperationID    string             `json:"operationId"`
+	Path           string             `json:"path"`
+	Format         LocalizationFormat `json:"format"`
+	Fingerprint    string             `json:"fingerprint"`
+	Language       string             `json:"language"`
+	SourceLanguage string             `json:"sourceLanguage"`
+	EntryIDs       []string           `json:"entryIds"`
 }
 
 type LocalizationTranslationResult struct {
 	Entries    []LocalizationEntry `json:"entries"`
 	Translated int                 `json:"translated"`
+	Skipped    int                 `json:"skipped"`
 	Failed     int                 `json:"failed"`
 	Total      int                 `json:"total"`
 }

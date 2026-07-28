@@ -561,6 +561,7 @@ export namespace domain {
 	    format: string;
 	    fingerprint: string;
 	    language: string;
+	    sourceLanguage: string;
 	    entryIds: string[];
 	
 	    static createFrom(source: any = {}) {
@@ -574,12 +575,14 @@ export namespace domain {
 	        this.format = source["format"];
 	        this.fingerprint = source["fingerprint"];
 	        this.language = source["language"];
+	        this.sourceLanguage = source["sourceLanguage"];
 	        this.entryIds = source["entryIds"];
 	    }
 	}
 	export class LocalizationTranslationResult {
 	    entries: LocalizationEntry[];
 	    translated: number;
+	    skipped: number;
 	    failed: number;
 	    total: number;
 	
@@ -591,6 +594,7 @@ export namespace domain {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.entries = this.convertValues(source["entries"], LocalizationEntry);
 	        this.translated = source["translated"];
+	        this.skipped = source["skipped"];
 	        this.failed = source["failed"];
 	        this.total = source["total"];
 	    }

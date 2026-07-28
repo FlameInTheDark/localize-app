@@ -25,12 +25,12 @@ export interface LocalizationForm { category: string; text: string; }
 export interface LocalizationEntry { id: string; key: string; source: LocalizationForm[]; translation: LocalizationForm[]; plural: boolean; }
 export interface LocalizationFileRequest { path: string; format: LocalizationFormat; }
 export interface LocalizationFile { path: string; name: string; format: LocalizationFormat; fingerprint: string; entries: LocalizationEntry[]; }
-export interface LocalizationTranslationRequest { operationId: string; path: string; format: LocalizationFormat; fingerprint: string; language: string; entryIds: string[]; }
-export interface LocalizationTranslationResult { entries: LocalizationEntry[]; translated: number; failed: number; total: number; }
+export interface LocalizationTranslationRequest { operationId: string; path: string; format: LocalizationFormat; fingerprint: string; language: string; sourceLanguage: string; entryIds: string[]; }
+export interface LocalizationTranslationResult { entries: LocalizationEntry[]; translated: number; skipped: number; failed: number; total: number; }
 export type UntranslatedExportMode = "source" | "empty";
 export interface LocalizationSaveRequest { path: string; format: LocalizationFormat; fingerprint: string; language: string; entries: LocalizationEntry[]; untranslatedMode: UntranslatedExportMode; }
 export interface LocalizationSaveResult { path: string; }
-export interface LocalizationProgress { operationId: string; entryId?: string; status: "translating" | "translated" | "failed" | "complete"; completed: number; total: number; entry?: LocalizationEntry; error?: string; }
+export interface LocalizationProgress { operationId: string; entryId?: string; status: "detecting" | "translating" | "translated" | "skipped" | "failed" | "complete"; completed: number; total: number; entry?: LocalizationEntry; error?: string; }
 export interface TranslationVariantsRequest { sourceText: string; targetContext: string; markedTargetContext: string; selectedText: string; language: string; }
 export interface TranslationVariant { target: string; replacement: string; }
 export interface TranslationVariantsResult { variants: TranslationVariant[]; }

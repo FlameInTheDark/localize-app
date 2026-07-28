@@ -18,19 +18,22 @@ const localizationConstraint = "\nLocalization constraints: return only translat
 // TranslateLocalized translates one ordinary message or one plural message
 // group. Plural calls use the providers' existing structured-output support so
 // the target forms cannot be lost or reordered.
-func (s *Service) TranslateLocalized(ctx context.Context, source []domain.LocalizationForm, targetCategories []string, language string) ([]domain.LocalizationForm, error) {
+func (s *Service) TranslateLocalized(ctx context.Context, source []domain.LocalizationForm, targetCategories []string, language, sourceLanguage string) ([]domain.LocalizationForm, error) {
 	if len(source) == 0 || strings.TrimSpace(language) == "" {
 		return nil, fmt.Errorf("source text and target language are required")
 	}
 	if len(targetCategories) == 0 {
 		targetCategories = []string{"other"}
 	}
+	if !hasLocalizationText(source) {
+		return emptyLocalizedForms(targetCategories), nil
+	}
 	client, model, err := s.client(ctx, false)
 	if err != nil {
 		return nil, err
 	}
 	for attempt := 0; attempt < 2; attempt++ {
-		forms, err := s.localizedAttempt(ctx, client, model, source, targetCategories, language, attempt > 0)
+		forms, err := s.localizedAttempt(ctx, client, model, source, targetCategories, language, sourceLanguage, attempt > 0)
 		if err == nil && validLocalizedForms(source, forms) {
 			return forms, nil
 		}
@@ -44,8 +47,28 @@ func (s *Service) TranslateLocalized(ctx context.Context, source []domain.Locali
 	return nil, fmt.Errorf("localization translation failed")
 }
 
-func (s *Service) localizedAttempt(ctx context.Context, client inference.Client, model string, source []domain.LocalizationForm, targetCategories []string, language string, recovery bool) ([]domain.LocalizationForm, error) {
+func hasLocalizationText(forms []domain.LocalizationForm) bool {
+	for _, form := range forms {
+		if strings.TrimSpace(form.Text) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func emptyLocalizedForms(categories []string) []domain.LocalizationForm {
+	forms := make([]domain.LocalizationForm, len(categories))
+	for index, category := range categories {
+		forms[index] = domain.LocalizationForm{Category: category}
+	}
+	return forms
+}
+
+func (s *Service) localizedAttempt(ctx context.Context, client inference.Client, model string, source []domain.LocalizationForm, targetCategories []string, language, sourceLanguage string, recovery bool) ([]domain.LocalizationForm, error) {
 	system := s.promptSettings().TranslationFor(language) + localizationConstraint
+	if sourceLanguage = strings.TrimSpace(sourceLanguage); sourceLanguage != "" && sourceLanguage != "auto" {
+		system += "\nSource-language constraint: the source text has been confirmed as " + sourceLanguage + ". Translate from that language only."
+	}
 	if recovery {
 		system += "\nThe previous output was invalid. Copy every protected token exactly and return the complete requested result."
 	}

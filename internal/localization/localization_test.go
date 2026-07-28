@@ -1,10 +1,12 @@
 package localization
 
 import (
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf16"
 
 	"github.com/FlameInTheDark/localize-app/internal/domain"
 )
@@ -104,6 +106,28 @@ func TestYAMLPropertiesAndKeyValuesRoundTrip(t *testing.T) {
 			t.Fatalf("unexpected Steam VDF: %s", data)
 		}
 	})
+	t.Run("UTF-16LE Source KeyValues", func(t *testing.T) {
+		path := fixtureBytes(t, "closecaption_russian.txt", utf16LE("\"lang\"\n{\n  \"language\" \"russian\"\n  \"tokens\"\n  {\n    \"caption\" \"Hello\"\n  }\n}\n"))
+		file, _, err := Open(path, domain.LocalizationFormatSourceKeyValues)
+		if err != nil {
+			t.Fatal(err)
+		}
+		file.Entries[0].Translation = []domain.LocalizationForm{{Category: "other", Text: "Привет"}}
+		data, err := Render(path, file.Format, file.Fingerprint, file.Entries, domain.UntranslatedExportSource, "ru")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(data) < 2 || data[0] != 0xff || data[1] != 0xfe {
+			t.Fatalf("UTF-16LE BOM was not preserved: %x", data[:min(2, len(data))])
+		}
+		decoded, _, err := decodeKeyValues(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(decoded), "\"language\" \"Russian\"") || !strings.Contains(string(decoded), "\"caption\" \"Привет\"") {
+			t.Fatalf("unexpected UTF-16 KeyValues output: %s", decoded)
+		}
+	})
 }
 
 func TestPORenderUpdatesHeaderPluralFormsAndFuzzy(t *testing.T) {
@@ -146,10 +170,24 @@ func TestRenderRejectsChangedSource(t *testing.T) {
 }
 
 func fixture(t *testing.T, name, content string) string {
+	return fixtureBytes(t, name, []byte(content))
+}
+
+func fixtureBytes(t *testing.T, name string, content []byte) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+	if err := os.WriteFile(path, content, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func utf16LE(value string) []byte {
+	output := []byte{0xff, 0xfe}
+	for _, unit := range utf16.Encode([]rune(value)) {
+		var encoded [2]byte
+		binary.LittleEndian.PutUint16(encoded[:], unit)
+		output = append(output, encoded[:]...)
+	}
+	return output
 }

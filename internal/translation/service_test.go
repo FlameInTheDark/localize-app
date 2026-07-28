@@ -44,6 +44,21 @@ func TestDetectNormalizesLanguageCodes(t *testing.T) {
 	}
 }
 
+func TestDetectLocalizedSourceUsesLocalizationConstraint(t *testing.T) {
+	client := &recordingClient{response: "ru"}
+	service := New(func(context.Context, bool) (inference.Client, string, error) { return client, "test", nil }, func() domain.PromptSettings { return domain.DefaultPromptSettings() })
+	codes, err := service.DetectLocalizedSource(context.Background(), []domain.LocalizationForm{{Category: "other", Text: "Привет, {{name}}!"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(codes) != 1 || codes[0] != "ru" {
+		t.Fatalf("unexpected codes: %#v", codes)
+	}
+	if !strings.Contains(client.request.System, "Localization language-detection constraints") {
+		t.Fatalf("localization detection constraint was not sent: %#v", client.request)
+	}
+}
+
 func TestSplitTextProducesBoundedOrderedChunks(t *testing.T) {
 	input := "First sentence. Second sentence is longer. Third sentence."
 	chunks := SplitText(input, 24)

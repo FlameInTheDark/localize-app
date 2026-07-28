@@ -449,6 +449,10 @@ func (d *Desktop) TranslateLocalizationEntries(request LocalizationTranslationRe
 	if len(ids) == 0 {
 		return LocalizationTranslationResult{}, fmt.Errorf("choose at least one localization entry")
 	}
+	sourceLanguage := strings.ToLower(strings.TrimSpace(request.SourceLanguage))
+	if sourceLanguage == "auto" {
+		sourceLanguage = ""
+	}
 	result := LocalizationTranslationResult{Entries: make([]LocalizationEntry, 0, len(ids)), Total: len(ids)}
 	for index, id := range ids {
 		entry, exists := byID[id]
@@ -457,7 +461,6 @@ func (d *Desktop) TranslateLocalizationEntries(request LocalizationTranslationRe
 			d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "failed", Completed: index + 1, Total: len(ids), Error: "entry no longer exists; reload the file"})
 			continue
 		}
-		d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "translating", Completed: index, Total: len(ids)})
 		categories := []string{"other"}
 		if entry.Plural {
 			categories, err = localization.TargetPluralForms(request.Language)
@@ -467,7 +470,31 @@ func (d *Desktop) TranslateLocalizationEntries(request LocalizationTranslationRe
 				continue
 			}
 		}
-		translated, translateErr := d.translate.TranslateLocalized(d.context(), entry.Source, categories, request.Language)
+		if !localizationEntryHasText(entry.Source) {
+			result.Skipped++
+			entry.Translation = localizationSourceForms(entry.Source, categories)
+			entryCopy := entry
+			d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "skipped", Completed: index + 1, Total: len(ids), Entry: &entryCopy, Error: "No source text to translate"})
+			continue
+		}
+		if sourceLanguage != "" {
+			d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "detecting", Completed: index, Total: len(ids)})
+			detected, detectErr := d.translate.DetectLocalizedSource(d.context(), entry.Source)
+			if detectErr != nil {
+				result.Failed++
+				d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "failed", Completed: index + 1, Total: len(ids), Error: fmt.Sprintf("detect source language: %v", detectErr)})
+				continue
+			}
+			if !matchesLocalizationSourceLanguage(detected, sourceLanguage) {
+				result.Skipped++
+				entry.Translation = localizationSourceForms(entry.Source, categories)
+				entryCopy := entry
+				d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "skipped", Completed: index + 1, Total: len(ids), Entry: &entryCopy, Error: fmt.Sprintf("Detected %s; selected source language is %s", strings.Join(detected, ", "), sourceLanguage)})
+				continue
+			}
+		}
+		d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "translating", Completed: index, Total: len(ids)})
+		translated, translateErr := d.translate.TranslateLocalized(d.context(), entry.Source, categories, request.Language, sourceLanguage)
 		if translateErr != nil {
 			result.Failed++
 			d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "failed", Completed: index + 1, Total: len(ids), Error: translateErr.Error()})
@@ -519,6 +546,49 @@ func uniqueLocalizationIDs(ids []string) []string {
 		}
 	}
 	return output
+}
+
+func localizationEntryHasText(forms []LocalizationForm) bool {
+	for _, form := range forms {
+		if strings.TrimSpace(form.Text) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func matchesLocalizationSourceLanguage(detected []string, selected string) bool {
+	for _, language := range detected {
+		if strings.EqualFold(strings.TrimSpace(language), selected) {
+			return true
+		}
+	}
+	return false
+}
+
+func localizationSourceForms(source []LocalizationForm, categories []string) []LocalizationForm {
+	forms := make([]LocalizationForm, len(categories))
+	for index, category := range categories {
+		forms[index] = LocalizationForm{Category: category, Text: localizationSourceForm(source, category)}
+	}
+	return forms
+}
+
+func localizationSourceForm(forms []LocalizationForm, category string) string {
+	for _, form := range forms {
+		if form.Category == category {
+			return form.Text
+		}
+	}
+	for _, form := range forms {
+		if form.Category == "other" {
+			return form.Text
+		}
+	}
+	if len(forms) > 0 {
+		return forms[0].Text
+	}
+	return ""
 }
 
 func writeLocalizationFile(destination string, data []byte) error {

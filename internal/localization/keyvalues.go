@@ -1,9 +1,12 @@
 package localization
 
 import (
+	"encoding/binary"
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/FlameInTheDark/localize-app/internal/domain"
 )
@@ -23,13 +26,25 @@ type kvNode struct {
 type keyValuesDocument struct {
 	data        []byte
 	roots       []*kvNode
-	bom         bool
+	encoding    keyValuesEncoding
 	steamRoot   *kvNode
 	steamLocale *kvNode
 }
 
+type keyValuesEncoding uint8
+
+const (
+	keyValuesUTF8 keyValuesEncoding = iota
+	keyValuesUTF8BOM
+	keyValuesUTF16LE
+	keyValuesUTF16BE
+)
+
 func parseKeyValues(data []byte) (*keyValuesDocument, error) {
-	content := stripBOM(data)
+	content, encoding, err := decodeKeyValues(data)
+	if err != nil {
+		return nil, err
+	}
 	tokens, err := scanKeyValues(content)
 	if err != nil {
 		return nil, err
@@ -39,7 +54,7 @@ func parseKeyValues(data []byte) (*keyValuesDocument, error) {
 	if err != nil {
 		return nil, err
 	}
-	doc := &keyValuesDocument{data: append([]byte(nil), content...), roots: roots, bom: hasBOM(data)}
+	doc := &keyValuesDocument{data: append([]byte(nil), content...), roots: roots, encoding: encoding}
 	if doc.languageNode() != nil && doc.tokensNode() != nil {
 		return doc, nil
 	}
@@ -54,6 +69,58 @@ func parseKeyValues(data []byte) (*keyValuesDocument, error) {
 		}
 	}
 	return nil, fmt.Errorf("unsupported KeyValues localization layout; expected Source lang/Tokens or Steam localization/<language> structure")
+}
+
+func decodeKeyValues(data []byte) ([]byte, keyValuesEncoding, error) {
+	switch {
+	case len(data) >= 2 && data[0] == 0xff && data[1] == 0xfe:
+		content, err := decodeUTF16(data[2:], binary.LittleEndian)
+		return content, keyValuesUTF16LE, err
+	case len(data) >= 2 && data[0] == 0xfe && data[1] == 0xff:
+		content, err := decodeUTF16(data[2:], binary.BigEndian)
+		return content, keyValuesUTF16BE, err
+	case utf8.Valid(stripBOM(data)):
+		if hasBOM(data) {
+			return append([]byte(nil), stripBOM(data)...), keyValuesUTF8BOM, nil
+		}
+		return append([]byte(nil), data...), keyValuesUTF8, nil
+	default:
+		return nil, keyValuesUTF8, fmt.Errorf("source KeyValues files must be UTF-8 or UTF-16 encoded with a byte-order mark")
+	}
+}
+
+func decodeUTF16(data []byte, order binary.ByteOrder) ([]byte, error) {
+	if len(data)%2 != 0 {
+		return nil, fmt.Errorf("UTF-16 KeyValues file has an odd byte length")
+	}
+	units := make([]uint16, len(data)/2)
+	for index := range units {
+		units[index] = order.Uint16(data[index*2:])
+	}
+	return []byte(string(utf16.Decode(units))), nil
+}
+
+func encodeKeyValues(data []byte, encoding keyValuesEncoding) []byte {
+	switch encoding {
+	case keyValuesUTF8BOM:
+		return append([]byte{0xef, 0xbb, 0xbf}, data...)
+	case keyValuesUTF16LE, keyValuesUTF16BE:
+		output := make([]byte, 2, 2+len(data)*2)
+		var order binary.ByteOrder = binary.LittleEndian
+		if encoding == keyValuesUTF16LE {
+			output[0], output[1] = 0xff, 0xfe
+		} else {
+			output[0], output[1], order = 0xfe, 0xff, binary.BigEndian
+		}
+		for _, unit := range utf16.Encode([]rune(string(data))) {
+			var encoded [2]byte
+			order.PutUint16(encoded[:], unit)
+			output = append(output, encoded[:]...)
+		}
+		return output
+	default:
+		return data
+	}
 }
 
 func scanKeyValues(data []byte) ([]kvToken, error) {
@@ -235,11 +302,7 @@ func (d *keyValuesDocument) render(translations map[string][]domain.Localization
 		text := bestForm(fallbackForms([]domain.LocalizationForm{{Category: "other", Text: node.value.value}}, forms, fallback), "other")
 		replacements[node.value.start] = replacement{end: node.value.end, text: quoteKV(text)}
 	}
-	data := applyReplacements(d.data, replacements)
-	if d.bom {
-		data = append([]byte{0xef, 0xbb, 0xbf}, data...)
-	}
-	return data, nil
+	return encodeKeyValues(applyReplacements(d.data, replacements), d.encoding), nil
 }
 
 type replacement struct {

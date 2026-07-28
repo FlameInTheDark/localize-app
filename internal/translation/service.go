@@ -77,6 +77,25 @@ func (s *Service) Translate(ctx context.Context, text, language string) (string,
 }
 
 func (s *Service) Detect(ctx context.Context, text string) ([]string, error) {
+	return s.detect(ctx, text, "")
+}
+
+// DetectLocalizedSource identifies natural-language text in one localization
+// entry while ignoring its keys, placeholders, and format syntax.
+func (s *Service) DetectLocalizedSource(ctx context.Context, forms []domain.LocalizationForm) ([]string, error) {
+	var text strings.Builder
+	for _, form := range forms {
+		if value := strings.TrimSpace(form.Text); value != "" {
+			if text.Len() > 0 {
+				text.WriteString("\n")
+			}
+			text.WriteString(value)
+		}
+	}
+	return s.detect(ctx, text.String(), "\nLocalization language-detection constraints: identify only the natural-language source text. Ignore localization keys, placeholders, markup, escape sequences, and file syntax. Return only ISO 639-1 code(s).")
+}
+
+func (s *Service) detect(ctx context.Context, text, constraint string) ([]string, error) {
 	if strings.TrimSpace(text) == "" {
 		return nil, fmt.Errorf("text is required")
 	}
@@ -84,7 +103,7 @@ func (s *Service) Detect(ctx context.Context, text string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	response, err := client.Generate(ctx, inference.Request{Model: model, System: s.promptSettings().Detection(), Prompt: text})
+	response, err := client.Generate(ctx, inference.Request{Model: model, System: s.promptSettings().Detection() + constraint, Prompt: text})
 	if err != nil {
 		return nil, err
 	}
