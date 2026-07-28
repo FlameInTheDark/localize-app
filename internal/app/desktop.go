@@ -17,6 +17,7 @@ import (
 	"github.com/FlameInTheDark/localize-app/internal/catalog"
 	"github.com/FlameInTheDark/localize-app/internal/documents"
 	"github.com/FlameInTheDark/localize-app/internal/inference"
+	"github.com/FlameInTheDark/localize-app/internal/localization"
 	"github.com/FlameInTheDark/localize-app/internal/operations"
 	llamaruntime "github.com/FlameInTheDark/localize-app/internal/runtime"
 	"github.com/FlameInTheDark/localize-app/internal/settings"
@@ -406,6 +407,149 @@ func (d *Desktop) LoadFile(path, kind string) (FileSelection, error) {
 	return selection, nil
 }
 
+func (d *Desktop) PickLocalizationFile(format LocalizationFormat) (FileSelection, error) {
+	path, err := wailsruntime.OpenFileDialog(d.context(), wailsruntime.OpenDialogOptions{Title: "Select localization file", Filters: []wailsruntime.FileFilter{{DisplayName: "Localization files", Pattern: strings.Join(localization.Filters(format), ";")}}})
+	if err != nil || path == "" {
+		return FileSelection{}, err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return FileSelection{}, err
+	}
+	if info.IsDir() {
+		return FileSelection{}, fmt.Errorf("select a file, not a directory")
+	}
+	return FileSelection{Path: path, Name: filepath.Base(path), Size: info.Size(), MimeType: mime.TypeByExtension(filepath.Ext(path))}, nil
+}
+
+func (d *Desktop) LoadLocalizationFile(request LocalizationFileRequest) (LocalizationFile, error) {
+	file, _, err := localization.Open(request.Path, request.Format)
+	return file, err
+}
+
+func (d *Desktop) TranslateLocalizationEntries(request LocalizationTranslationRequest) (LocalizationTranslationResult, error) {
+	if strings.TrimSpace(request.OperationID) == "" {
+		return LocalizationTranslationResult{}, fmt.Errorf("operation ID is required")
+	}
+	if strings.TrimSpace(request.Language) == "" {
+		return LocalizationTranslationResult{}, fmt.Errorf("target language is required")
+	}
+	file, _, err := localization.Open(request.Path, request.Format)
+	if err != nil {
+		return LocalizationTranslationResult{}, err
+	}
+	if file.Fingerprint != request.Fingerprint {
+		return LocalizationTranslationResult{}, fmt.Errorf("the source file changed after it was loaded; reload it before translating")
+	}
+	byID := make(map[string]LocalizationEntry, len(file.Entries))
+	for _, entry := range file.Entries {
+		byID[entry.ID] = entry
+	}
+	ids := uniqueLocalizationIDs(request.EntryIDs)
+	if len(ids) == 0 {
+		return LocalizationTranslationResult{}, fmt.Errorf("choose at least one localization entry")
+	}
+	result := LocalizationTranslationResult{Entries: make([]LocalizationEntry, 0, len(ids)), Total: len(ids)}
+	for index, id := range ids {
+		entry, exists := byID[id]
+		if !exists {
+			result.Failed++
+			d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "failed", Completed: index + 1, Total: len(ids), Error: "entry no longer exists; reload the file"})
+			continue
+		}
+		d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "translating", Completed: index, Total: len(ids)})
+		categories := []string{"other"}
+		if entry.Plural {
+			categories, err = localization.TargetPluralForms(request.Language)
+			if err != nil {
+				result.Failed++
+				d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "failed", Completed: index + 1, Total: len(ids), Error: err.Error()})
+				continue
+			}
+		}
+		translated, translateErr := d.translate.TranslateLocalized(d.context(), entry.Source, categories, request.Language)
+		if translateErr != nil {
+			result.Failed++
+			d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "failed", Completed: index + 1, Total: len(ids), Error: translateErr.Error()})
+			continue
+		}
+		entry.Translation = translated
+		result.Entries = append(result.Entries, entry)
+		result.Translated++
+		entryCopy := entry
+		d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "translated", Completed: index + 1, Total: len(ids), Entry: &entryCopy})
+	}
+	d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, Status: "complete", Completed: result.Total, Total: result.Total})
+	return result, nil
+}
+
+func (d *Desktop) SaveLocalizationFile(request LocalizationSaveRequest) (LocalizationSaveResult, error) {
+	if strings.TrimSpace(request.Language) == "" {
+		return LocalizationSaveResult{}, fmt.Errorf("target language is required")
+	}
+	data, err := localization.Render(request.Path, request.Format, request.Fingerprint, request.Entries, request.UntranslatedMode, request.Language)
+	if err != nil {
+		return LocalizationSaveResult{}, err
+	}
+	destination, err := wailsruntime.SaveFileDialog(d.context(), wailsruntime.SaveDialogOptions{Title: "Save translated localization file", DefaultDirectory: filepath.Dir(request.Path), DefaultFilename: localization.DefaultFilename(request.Path, request.Language), Filters: []wailsruntime.FileFilter{{DisplayName: "Localization file", Pattern: strings.Join(localization.Filters(request.Format), ";")}}})
+	if err != nil || destination == "" {
+		return LocalizationSaveResult{}, err
+	}
+	if err := writeLocalizationFile(destination, data); err != nil {
+		return LocalizationSaveResult{}, err
+	}
+	return LocalizationSaveResult{Path: destination}, nil
+}
+
+func (d *Desktop) emitLocalizationProgress(progress LocalizationProgress) {
+	if d.ctx != nil {
+		wailsruntime.EventsEmit(d.ctx, "localization:progress", progress)
+	}
+}
+
+func uniqueLocalizationIDs(ids []string) []string {
+	seen := make(map[string]struct{}, len(ids))
+	output := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if id = strings.TrimSpace(id); id != "" {
+			if _, exists := seen[id]; !exists {
+				seen[id] = struct{}{}
+				output = append(output, id)
+			}
+		}
+	}
+	return output
+}
+
+func writeLocalizationFile(destination string, data []byte) error {
+	directory := filepath.Dir(destination)
+	temporary, err := os.CreateTemp(directory, ".localize-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer func() { _ = os.Remove(temporaryPath) }()
+	if _, err := temporary.Write(data); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(temporaryPath, destination); err != nil {
+		// SaveFileDialog has already obtained the user's confirmation to replace
+		// this exact target. Windows may still reject an atomic rename over an
+		// existing file, so remove only that explicit target and retry.
+		if removeErr := os.Remove(destination); removeErr != nil && !os.IsNotExist(removeErr) {
+			return fmt.Errorf("replace translated file: %w", err)
+		}
+		if retryErr := os.Rename(temporaryPath, destination); retryErr != nil {
+			return fmt.Errorf("save translated file: %w", retryErr)
+		}
+	}
+	return nil
+}
+
 func (d *Desktop) TranslateText(request TranslateRequest) (string, error) {
 	return d.translate.Translate(d.context(), request.Text, request.Language)
 }
@@ -615,6 +759,10 @@ func runtimeInstalled(status LlamaCppRuntimeStatus, version string, mode Runtime
 			return installed.CPUInstalled
 		case RuntimeCUDA:
 			return installed.CUDAInstalled
+		case RuntimeVulkan:
+			return installed.VulkanInstalled
+		case RuntimeHIP:
+			return installed.HIPInstalled
 		default:
 			if _, err := exec.LookPath("nvidia-smi"); err == nil && installed.CUDAInstalled {
 				return true

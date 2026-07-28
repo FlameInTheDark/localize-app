@@ -29,3 +29,16 @@ func TestServerArgumentsKeepRegularModelsOnTheirEmbeddedTemplate(t *testing.T) {
 		t.Fatalf("regular model should retain its embedded template: %s", arguments)
 	}
 }
+
+func TestServerArgumentsOffloadLayersForGPUBackends(t *testing.T) {
+	settings := domain.LlamaCppSettings{ContextSize: 4096}
+	assignment := domain.ModelAssignment{ID: "qwen3", Path: `C:\models\qwen3.gguf`}
+	for _, mode := range []domain.RuntimeMode{domain.RuntimeCUDA, domain.RuntimeVulkan, domain.RuntimeHIP} {
+		t.Run(string(mode), func(t *testing.T) {
+			arguments := strings.Join(serverArguments(settings, assignment, "12345", mode), " ")
+			if !strings.Contains(arguments, "-ngl 999") {
+				t.Fatalf("expected GPU layers to be offloaded for %s: %s", mode, arguments)
+			}
+		})
+	}
+}

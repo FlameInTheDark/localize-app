@@ -1,5 +1,5 @@
 import * as Desktop from "../../wailsjs/go/app/Desktop";
-import type { DocumentRequest, HuggingFaceFile, HuggingFaceInstallRequest, HuggingFaceModel, ImageResult, ModelInfo, ProviderStatus, Settings, FileSelection, DocumentResult, PromptSettings, TranslationVariantsRequest, TranslationVariantsResult, LlamaCppRelease, LlamaCppRuntimeInstallRequest, LlamaCppRuntimeStatus, MuPDFRelease, MuPDFRuntimeInstallRequest, MuPDFRuntimeStatus, WhisperCppRelease, WhisperCppRuntimeInstallRequest, WhisperCppRuntimeStatus, WhisperModel, WhisperModelInstallRequest, WhisperStatus, AudioTranscriptionRequest, CapturedAudioTranscriptionRequest, AudioTranscriptionResult, UpdateAvailability } from "./contracts";
+import type { DocumentRequest, HuggingFaceFile, HuggingFaceInstallRequest, HuggingFaceModel, ImageResult, ModelInfo, ProviderStatus, Settings, FileSelection, DocumentResult, PromptSettings, TranslationVariantsRequest, TranslationVariantsResult, LlamaCppRelease, LlamaCppRuntimeInstallRequest, LlamaCppRuntimeStatus, MuPDFRelease, MuPDFRuntimeInstallRequest, MuPDFRuntimeStatus, WhisperCppRelease, WhisperCppRuntimeInstallRequest, WhisperCppRuntimeStatus, WhisperModel, WhisperModelInstallRequest, WhisperStatus, AudioTranscriptionRequest, CapturedAudioTranscriptionRequest, AudioTranscriptionResult, UpdateAvailability, LocalizationFormat, LocalizationFileRequest, LocalizationFile, LocalizationTranslationRequest, LocalizationTranslationResult, LocalizationSaveRequest, LocalizationSaveResult } from "./contracts";
 
 // The generated bindings own the transport. These narrow casts keep React tied
 // to stable feature contracts instead of Wails generator class implementations.
@@ -46,4 +46,8 @@ export const api = {
   ocr: (path: string) => Desktop.ExtractImageText(path),
   image: (path: string, language: string) => Desktop.TranslateImage({ path, language } as never) as unknown as Promise<ImageResult>,
   document: (request: DocumentRequest) => Desktop.TranslateDocument(request as never) as unknown as Promise<DocumentResult>,
+  pickLocalizationFile: (format: LocalizationFormat) => Desktop.PickLocalizationFile(format) as unknown as Promise<FileSelection>,
+  loadLocalizationFile: (request: LocalizationFileRequest) => Desktop.LoadLocalizationFile(request as never) as unknown as Promise<LocalizationFile>,
+  translateLocalizationEntries: (request: LocalizationTranslationRequest) => Desktop.TranslateLocalizationEntries(request as never) as unknown as Promise<LocalizationTranslationResult>,
+  saveLocalizationFile: (request: LocalizationSaveRequest) => Desktop.SaveLocalizationFile(request as never) as unknown as Promise<LocalizationSaveResult>,
 };

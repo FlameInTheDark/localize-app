@@ -118,6 +118,10 @@ export function LoadFile(arg1, arg2) {
   return window['go']['app']['Desktop']['LoadFile'](arg1, arg2);
 }
 
+export function LoadLocalizationFile(arg1) {
+  return window['go']['app']['Desktop']['LoadLocalizationFile'](arg1);
+}
+
 export function OpenLatestRelease() {
   return window['go']['app']['Desktop']['OpenLatestRelease']();
 }
@@ -134,12 +138,20 @@ export function PickLlamaModelDirectory() {
   return window['go']['app']['Desktop']['PickLlamaModelDirectory']();
 }
 
+export function PickLocalizationFile(arg1) {
+  return window['go']['app']['Desktop']['PickLocalizationFile'](arg1);
+}
+
 export function PickWhisperModelDirectory() {
   return window['go']['app']['Desktop']['PickWhisperModelDirectory']();
 }
 
 export function PullOllamaModel(arg1) {
   return window['go']['app']['Desktop']['PullOllamaModel'](arg1);
+}
+
+export function SaveLocalizationFile(arg1) {
+  return window['go']['app']['Desktop']['SaveLocalizationFile'](arg1);
 }
 
 export function SaveSettings(arg1) {
@@ -168,6 +180,10 @@ export function TranslateDocument(arg1) {
 
 export function TranslateImage(arg1) {
   return window['go']['app']['Desktop']['TranslateImage'](arg1);
+}
+
+export function TranslateLocalizationEntries(arg1) {
+  return window['go']['app']['Desktop']['TranslateLocalizationEntries'](arg1);
 }
 
 export function TranslateText(arg1) {

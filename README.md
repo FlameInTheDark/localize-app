@@ -53,10 +53,12 @@ open **Settings → Models** in Localize and pull a translation model such as
 use image translation or OCR.
 
 If you prefer GGUF models, open **Settings → Runtime** to install a selected
-llama.cpp CPU or CUDA version. In **Settings → Models**, choose where GGUF
-files should live, find a public Hugging Face model, download it, and assign it
-as the translation model. Vision models also need their compatible `mmproj`
-projection file.
+llama.cpp CPU, NVIDIA CUDA, Vulkan, or AMD HIP/Radeon build. Choose the runtime
+type that matches your hardware; automatic mode continues to use CUDA when an
+NVIDIA runtime is available, otherwise CPU. In **Settings → Models**, choose
+where GGUF files should live, find a public Hugging Face model, download it,
+and assign it as the translation model. Vision models also need their compatible
+`mmproj` projection file.
 
 You can switch between Ollama and llama.cpp at any time. Localize starts only
 the llama.cpp processes it owns, listens on loopback, and stops them when the

@@ -1,5 +1,5 @@
 export type ProviderKind = "ollama" | "llamacpp";
-export type RuntimeMode = "auto" | "cpu" | "cuda";
+export type RuntimeMode = "auto" | "cpu" | "cuda" | "vulkan" | "hip";
 
 export interface ModelAssignment { id: string; path?: string; projectionPath?: string; supportsVision: boolean; }
 export interface Settings {
@@ -20,6 +20,17 @@ export interface FileSelection { path: string; name: string; size: number; mimeT
 export interface ImageResult { original: string; translation: string; }
 export interface DocumentSegment { ordinal: number; original: string; translation: string; }
 export interface DocumentResult { segments: DocumentSegment[]; detected: number; extracted: number; translated: number; }
+export type LocalizationFormat = "auto" | "i18next-json" | "yaml" | "properties" | "gettext-po" | "source-keyvalues";
+export interface LocalizationForm { category: string; text: string; }
+export interface LocalizationEntry { id: string; key: string; source: LocalizationForm[]; translation: LocalizationForm[]; plural: boolean; }
+export interface LocalizationFileRequest { path: string; format: LocalizationFormat; }
+export interface LocalizationFile { path: string; name: string; format: LocalizationFormat; fingerprint: string; entries: LocalizationEntry[]; }
+export interface LocalizationTranslationRequest { operationId: string; path: string; format: LocalizationFormat; fingerprint: string; language: string; entryIds: string[]; }
+export interface LocalizationTranslationResult { entries: LocalizationEntry[]; translated: number; failed: number; total: number; }
+export type UntranslatedExportMode = "source" | "empty";
+export interface LocalizationSaveRequest { path: string; format: LocalizationFormat; fingerprint: string; language: string; entries: LocalizationEntry[]; untranslatedMode: UntranslatedExportMode; }
+export interface LocalizationSaveResult { path: string; }
+export interface LocalizationProgress { operationId: string; entryId?: string; status: "translating" | "translated" | "failed" | "complete"; completed: number; total: number; entry?: LocalizationEntry; error?: string; }
 export interface TranslationVariantsRequest { sourceText: string; targetContext: string; markedTargetContext: string; selectedText: string; language: string; }
 export interface TranslationVariant { target: string; replacement: string; }
 export interface TranslationVariantsResult { variants: TranslationVariant[]; }
@@ -27,9 +38,9 @@ export interface HuggingFaceModel { id: string; author: string; downloads: numbe
 export interface HuggingFaceFile { name: string; size: number; oid?: string; mmproj: boolean; }
 export interface HuggingFaceInstallRequest { repository: string; modelFile: string; mmprojFile?: string; }
 export interface LlamaCppRuntimeArtifact { url?: string; size: number; sha256?: string; }
-export interface LlamaCppRelease { version: string; publishedAt?: string; cpu: LlamaCppRuntimeArtifact; cuda: LlamaCppRuntimeArtifact; }
+export interface LlamaCppRelease { version: string; publishedAt?: string; cpu: LlamaCppRuntimeArtifact; cuda: LlamaCppRuntimeArtifact; vulkan: LlamaCppRuntimeArtifact; hip: LlamaCppRuntimeArtifact; }
 export interface LlamaCppRuntimeInstallRequest { version: string; mode: Exclude<RuntimeMode, "auto">; }
-export interface LlamaCppInstalledRuntime { version: string; cpuInstalled: boolean; cudaInstalled: boolean; }
+export interface LlamaCppInstalledRuntime { version: string; cpuInstalled: boolean; cudaInstalled: boolean; vulkanInstalled: boolean; hipInstalled: boolean; }
 export interface LlamaCppRuntimeStatus { root: string; selectedVersion?: string; installed: LlamaCppInstalledRuntime[]; }
 export interface WhisperCppRelease { version: string; publishedAt?: string; cpu: LlamaCppRuntimeArtifact; cuda: LlamaCppRuntimeArtifact; }
 export interface WhisperCppRuntimeInstallRequest { version: string; mode: Exclude<RuntimeMode, "auto">; }

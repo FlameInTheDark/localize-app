@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { OperationProgress } from "@/types/api";
 
-export type WorkspaceTab = "text" | "document" | "image" | "ocr";
+export type WorkspaceTab = "text" | "document" | "image" | "ocr" | "localization";
 
 type WorkspaceState = {
   tab: WorkspaceTab;

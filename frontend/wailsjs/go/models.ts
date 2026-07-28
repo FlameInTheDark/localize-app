@@ -219,6 +219,8 @@ export namespace domain {
 	    version: string;
 	    cpuInstalled: boolean;
 	    cudaInstalled: boolean;
+	    vulkanInstalled: boolean;
+	    hipInstalled: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new LlamaCppInstalledRuntime(source);
@@ -229,6 +231,8 @@ export namespace domain {
 	        this.version = source["version"];
 	        this.cpuInstalled = source["cpuInstalled"];
 	        this.cudaInstalled = source["cudaInstalled"];
+	        this.vulkanInstalled = source["vulkanInstalled"];
+	        this.hipInstalled = source["hipInstalled"];
 	    }
 	}
 	export class LlamaCppRuntimeArtifact {
@@ -252,6 +256,8 @@ export namespace domain {
 	    publishedAt?: string;
 	    cpu: LlamaCppRuntimeArtifact;
 	    cuda: LlamaCppRuntimeArtifact;
+	    vulkan: LlamaCppRuntimeArtifact;
+	    hip: LlamaCppRuntimeArtifact;
 	
 	    static createFrom(source: any = {}) {
 	        return new LlamaCppRelease(source);
@@ -263,6 +269,8 @@ export namespace domain {
 	        this.publishedAt = source["publishedAt"];
 	        this.cpu = this.convertValues(source["cpu"], LlamaCppRuntimeArtifact);
 	        this.cuda = this.convertValues(source["cuda"], LlamaCppRuntimeArtifact);
+	        this.vulkan = this.convertValues(source["vulkan"], LlamaCppRuntimeArtifact);
+	        this.hip = this.convertValues(source["hip"], LlamaCppRuntimeArtifact);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -370,6 +378,221 @@ export namespace domain {
 	        this.modelDir = source["modelDir"];
 	        this.translation = this.convertValues(source["translation"], ModelAssignment);
 	        this.vision = this.convertValues(source["vision"], ModelAssignment);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class LocalizationForm {
+	    category: string;
+	    text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalizationForm(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.category = source["category"];
+	        this.text = source["text"];
+	    }
+	}
+	export class LocalizationEntry {
+	    id: string;
+	    key: string;
+	    source: LocalizationForm[];
+	    translation: LocalizationForm[];
+	    plural: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalizationEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.key = source["key"];
+	        this.source = this.convertValues(source["source"], LocalizationForm);
+	        this.translation = this.convertValues(source["translation"], LocalizationForm);
+	        this.plural = source["plural"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class LocalizationFile {
+	    path: string;
+	    name: string;
+	    format: string;
+	    fingerprint: string;
+	    entries: LocalizationEntry[];
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalizationFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.name = source["name"];
+	        this.format = source["format"];
+	        this.fingerprint = source["fingerprint"];
+	        this.entries = this.convertValues(source["entries"], LocalizationEntry);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class LocalizationFileRequest {
+	    path: string;
+	    format: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalizationFileRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.format = source["format"];
+	    }
+	}
+	
+	export class LocalizationSaveRequest {
+	    path: string;
+	    format: string;
+	    fingerprint: string;
+	    language: string;
+	    entries: LocalizationEntry[];
+	    untranslatedMode: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalizationSaveRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.format = source["format"];
+	        this.fingerprint = source["fingerprint"];
+	        this.language = source["language"];
+	        this.entries = this.convertValues(source["entries"], LocalizationEntry);
+	        this.untranslatedMode = source["untranslatedMode"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class LocalizationSaveResult {
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalizationSaveResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	    }
+	}
+	export class LocalizationTranslationRequest {
+	    operationId: string;
+	    path: string;
+	    format: string;
+	    fingerprint: string;
+	    language: string;
+	    entryIds: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalizationTranslationRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.operationId = source["operationId"];
+	        this.path = source["path"];
+	        this.format = source["format"];
+	        this.fingerprint = source["fingerprint"];
+	        this.language = source["language"];
+	        this.entryIds = source["entryIds"];
+	    }
+	}
+	export class LocalizationTranslationResult {
+	    entries: LocalizationEntry[];
+	    translated: number;
+	    failed: number;
+	    total: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalizationTranslationResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entries = this.convertValues(source["entries"], LocalizationEntry);
+	        this.translated = source["translated"];
+	        this.failed = source["failed"];
+	        this.total = source["total"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -799,11 +1022,11 @@ export namespace domain {
 	    available: boolean;
 	    version: string;
 	    url: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new UpdateAvailability(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.available = source["available"];
@@ -990,3 +1213,4 @@ export namespace options {
 	}
 
 }
+

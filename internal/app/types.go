@@ -27,6 +27,17 @@ type DocumentRequest = domain.DocumentRequest
 type ImageResult = domain.ImageResult
 type DocumentSegment = domain.DocumentSegment
 type DocumentResult = domain.DocumentResult
+type LocalizationFormat = domain.LocalizationFormat
+type LocalizationForm = domain.LocalizationForm
+type LocalizationEntry = domain.LocalizationEntry
+type LocalizationFileRequest = domain.LocalizationFileRequest
+type LocalizationFile = domain.LocalizationFile
+type LocalizationTranslationRequest = domain.LocalizationTranslationRequest
+type LocalizationTranslationResult = domain.LocalizationTranslationResult
+type UntranslatedExportMode = domain.UntranslatedExportMode
+type LocalizationSaveRequest = domain.LocalizationSaveRequest
+type LocalizationSaveResult = domain.LocalizationSaveResult
+type LocalizationProgress = domain.LocalizationProgress
 type HuggingFaceModel = domain.HuggingFaceModel
 type HuggingFaceFile = domain.HuggingFaceFile
 type HuggingFaceInstallRequest = domain.HuggingFaceInstallRequest
@@ -54,6 +65,8 @@ const (
 	RuntimeAuto          = domain.RuntimeAuto
 	RuntimeCPU           = domain.RuntimeCPU
 	RuntimeCUDA          = domain.RuntimeCUDA
+	RuntimeVulkan        = domain.RuntimeVulkan
+	RuntimeHIP           = domain.RuntimeHIP
 	ModelRoleTranslation = domain.ModelRoleTranslation
 	ModelRoleVision      = domain.ModelRoleVision
 )

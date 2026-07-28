@@ -61,6 +61,8 @@ export function ListWhisperModels():Promise<Array<domain.WhisperModel>>;
 
 export function LoadFile(arg1:string,arg2:string):Promise<domain.FileSelection>;
 
+export function LoadLocalizationFile(arg1:domain.LocalizationFileRequest):Promise<domain.LocalizationFile>;
+
 export function OpenLatestRelease():Promise<void>;
 
 export function OpenOllamaCatalog():Promise<void>;
@@ -69,9 +71,13 @@ export function PickFile(arg1:string):Promise<domain.FileSelection>;
 
 export function PickLlamaModelDirectory():Promise<string>;
 
+export function PickLocalizationFile(arg1:domain.LocalizationFormat):Promise<domain.FileSelection>;
+
 export function PickWhisperModelDirectory():Promise<string>;
 
 export function PullOllamaModel(arg1:string):Promise<void>;
+
+export function SaveLocalizationFile(arg1:domain.LocalizationSaveRequest):Promise<domain.LocalizationSaveResult>;
 
 export function SaveSettings(arg1:domain.Settings):Promise<void>;
 
@@ -86,5 +92,7 @@ export function TranscribeCapturedAudio(arg1:domain.CapturedAudioTranscriptionRe
 export function TranslateDocument(arg1:domain.DocumentRequest):Promise<domain.DocumentResult>;
 
 export function TranslateImage(arg1:domain.ImageRequest):Promise<domain.ImageResult>;
+
+export function TranslateLocalizationEntries(arg1:domain.LocalizationTranslationRequest):Promise<domain.LocalizationTranslationResult>;
 
 export function TranslateText(arg1:domain.TranslateRequest):Promise<string>;

@@ -155,7 +155,7 @@ func serverArguments(settings domain.LlamaCppSettings, assignment domain.ModelAs
 		// message below.
 		args = append(args, "--no-jinja", "--chat-template", "gemma")
 	}
-	if mode == domain.RuntimeCUDA {
+	if mode == domain.RuntimeCUDA || mode == domain.RuntimeVulkan || mode == domain.RuntimeHIP {
 		args = append(args, "-ngl", "999")
 	}
 	return args

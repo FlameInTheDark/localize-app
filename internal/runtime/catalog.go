@@ -29,6 +29,8 @@ var (
 	cpuAsset       = regexp.MustCompile(`^llama-(b[0-9]+)-bin-win-cpu-x64\.zip$`)
 	cudaAsset      = regexp.MustCompile(`^llama-(b[0-9]+)-bin-win-cuda-(12\.4|13\.3)-x64\.zip$`)
 	cudartAsset    = regexp.MustCompile(`^cudart-llama-bin-win-cuda-(12\.4|13\.3)-x64\.zip$`)
+	vulkanAsset    = regexp.MustCompile(`^llama-(b[0-9]+)-bin-win-vulkan-x64\.zip$`)
+	hipAsset       = regexp.MustCompile(`^llama-(b[0-9]+)-bin-win-hip-radeon-x64\.zip$`)
 )
 
 // LlamaCatalog discovers official Windows runtime releases and installs them
@@ -83,8 +85,10 @@ func (c *LlamaCatalog) Status(selectedVersion string) (domain.LlamaCppRuntimeSta
 		versionRoot := filepath.Join(c.root, entry.Name())
 		cpu := fileExists(filepath.Join(versionRoot, string(domain.RuntimeCPU), "llama-server.exe"))
 		cuda := fileExists(filepath.Join(versionRoot, string(domain.RuntimeCUDA), "llama-server.exe"))
-		if cpu || cuda {
-			installed = append(installed, domain.LlamaCppInstalledRuntime{Version: entry.Name(), CPUInstalled: cpu, CUDAInstalled: cuda})
+		vulkan := fileExists(filepath.Join(versionRoot, string(domain.RuntimeVulkan), "llama-server.exe"))
+		hip := fileExists(filepath.Join(versionRoot, string(domain.RuntimeHIP), "llama-server.exe"))
+		if cpu || cuda || vulkan || hip {
+			installed = append(installed, domain.LlamaCppInstalledRuntime{Version: entry.Name(), CPUInstalled: cpu, CUDAInstalled: cuda, VulkanInstalled: vulkan, HIPInstalled: hip})
 		}
 	}
 	sort.Slice(installed, func(i, j int) bool { return installed[i].Version > installed[j].Version })
@@ -98,8 +102,8 @@ func (c *LlamaCatalog) Install(ctx context.Context, request domain.LlamaCppRunti
 	if !versionPattern.MatchString(strings.TrimSpace(request.Version)) {
 		return errors.New("choose a valid llama.cpp release")
 	}
-	if request.Mode != domain.RuntimeCPU && request.Mode != domain.RuntimeCUDA {
-		return errors.New("choose either the CPU or CUDA runtime")
+	if !llamaRuntimeMode(request.Mode) {
+		return errors.New("choose the CPU, CUDA, Vulkan, or HIP runtime")
 	}
 	manifests, err := c.releases(ctx)
 	if err != nil {
@@ -115,12 +119,23 @@ func (c *LlamaCatalog) Install(ctx context.Context, request domain.LlamaCppRunti
 	if selected == nil {
 		return fmt.Errorf("llama.cpp release %s is no longer available", request.Version)
 	}
-	artifacts := []namedArtifact{{name: "runtime", artifact: selected.release.CPU}}
-	if request.Mode == domain.RuntimeCUDA {
+	artifacts := []namedArtifact{{name: "CPU runtime", artifact: selected.release.CPU}}
+	switch request.Mode {
+	case domain.RuntimeCUDA:
 		if selected.release.CUDA.URL == "" || selected.cudart.URL == "" {
 			return fmt.Errorf("llama.cpp release %s does not provide a complete CUDA runtime", request.Version)
 		}
 		artifacts = []namedArtifact{{name: "CUDA runtime", artifact: selected.release.CUDA}, {name: "CUDA libraries", artifact: selected.cudart}}
+	case domain.RuntimeVulkan:
+		if selected.release.Vulkan.URL == "" {
+			return fmt.Errorf("llama.cpp release %s does not provide a Vulkan runtime", request.Version)
+		}
+		artifacts = []namedArtifact{{name: "Vulkan runtime", artifact: selected.release.Vulkan}}
+	case domain.RuntimeHIP:
+		if selected.release.HIP.URL == "" {
+			return fmt.Errorf("llama.cpp release %s does not provide an AMD HIP runtime", request.Version)
+		}
+		artifacts = []namedArtifact{{name: "AMD HIP runtime", artifact: selected.release.HIP}}
 	}
 	total := int64(0)
 	for _, item := range artifacts {
@@ -332,6 +347,8 @@ func (c *LlamaCatalog) releases(ctx context.Context) ([]releaseManifest, error) 
 			cpuMatch := cpuAsset.FindStringSubmatch(asset.Name)
 			cudaMatch := cudaAsset.FindStringSubmatch(asset.Name)
 			cudartMatch := cudartAsset.FindStringSubmatch(asset.Name)
+			vulkanMatch := vulkanAsset.FindStringSubmatch(asset.Name)
+			hipMatch := hipAsset.FindStringSubmatch(asset.Name)
 			switch {
 			case len(cpuMatch) > 0 && cpuMatch[1] == release.TagName:
 				manifest.release.CPU = artifact
@@ -339,6 +356,10 @@ func (c *LlamaCatalog) releases(ctx context.Context) ([]releaseManifest, error) 
 				cudaServers[cudaMatch[2]] = artifact
 			case len(cudartMatch) > 0:
 				cudaLibraries[cudartMatch[1]] = artifact
+			case len(vulkanMatch) > 0 && vulkanMatch[1] == release.TagName:
+				manifest.release.Vulkan = artifact
+			case len(hipMatch) > 0 && hipMatch[1] == release.TagName:
+				manifest.release.HIP = artifact
 			}
 		}
 		// CUDA 12.4 has the broadest driver support. Only expose it when its
@@ -359,6 +380,15 @@ func (c *LlamaCatalog) releases(ctx context.Context) ([]releaseManifest, error) 
 		return nil, errors.New("no compatible Windows x64 llama.cpp releases are currently available")
 	}
 	return manifests, nil
+}
+
+func llamaRuntimeMode(mode domain.RuntimeMode) bool {
+	switch mode {
+	case domain.RuntimeCPU, domain.RuntimeCUDA, domain.RuntimeVulkan, domain.RuntimeHIP:
+		return true
+	default:
+		return false
+	}
 }
 
 func extractServer(archive, destination string) error {

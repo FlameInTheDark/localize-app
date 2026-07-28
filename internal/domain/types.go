@@ -24,9 +24,11 @@ func IsTranslateGemmaModel(identifier string) bool {
 type RuntimeMode string
 
 const (
-	RuntimeAuto RuntimeMode = "auto"
-	RuntimeCPU  RuntimeMode = "cpu"
-	RuntimeCUDA RuntimeMode = "cuda"
+	RuntimeAuto   RuntimeMode = "auto"
+	RuntimeCPU    RuntimeMode = "cpu"
+	RuntimeCUDA   RuntimeMode = "cuda"
+	RuntimeVulkan RuntimeMode = "vulkan"
+	RuntimeHIP    RuntimeMode = "hip"
 )
 
 type ModelRole string
@@ -143,15 +145,19 @@ type LlamaCppRelease struct {
 	PublishedAt string                  `json:"publishedAt,omitempty"`
 	CPU         LlamaCppRuntimeArtifact `json:"cpu"`
 	CUDA        LlamaCppRuntimeArtifact `json:"cuda"`
+	Vulkan      LlamaCppRuntimeArtifact `json:"vulkan"`
+	HIP         LlamaCppRuntimeArtifact `json:"hip"`
 }
 type LlamaCppRuntimeInstallRequest struct {
 	Version string      `json:"version"`
 	Mode    RuntimeMode `json:"mode"`
 }
 type LlamaCppInstalledRuntime struct {
-	Version       string `json:"version"`
-	CPUInstalled  bool   `json:"cpuInstalled"`
-	CUDAInstalled bool   `json:"cudaInstalled"`
+	Version         string `json:"version"`
+	CPUInstalled    bool   `json:"cpuInstalled"`
+	CUDAInstalled   bool   `json:"cudaInstalled"`
+	VulkanInstalled bool   `json:"vulkanInstalled"`
+	HIPInstalled    bool   `json:"hipInstalled"`
 }
 type LlamaCppRuntimeStatus struct {
 	Root            string                     `json:"root"`
@@ -279,6 +285,95 @@ type DocumentResult struct {
 	Detected   int               `json:"detected"`
 	Extracted  int               `json:"extracted"`
 	Translated int               `json:"translated"`
+}
+
+// LocalizationFormat identifies a source localization-file syntax.
+type LocalizationFormat string
+
+const (
+	LocalizationFormatAuto            LocalizationFormat = "auto"
+	LocalizationFormatI18NextJSON     LocalizationFormat = "i18next-json"
+	LocalizationFormatYAML            LocalizationFormat = "yaml"
+	LocalizationFormatProperties      LocalizationFormat = "properties"
+	LocalizationFormatGettextPO       LocalizationFormat = "gettext-po"
+	LocalizationFormatSourceKeyValues LocalizationFormat = "source-keyvalues"
+)
+
+type LocalizationForm struct {
+	Category string `json:"category"`
+	Text     string `json:"text"`
+}
+
+// LocalizationEntry is a source value, or a grouped plural value, extracted
+// from a localization file. Source values are immutable in the UI; only the
+// translation forms are supplied back when the user saves a target file.
+type LocalizationEntry struct {
+	ID          string             `json:"id"`
+	Key         string             `json:"key"`
+	Source      []LocalizationForm `json:"source"`
+	Translation []LocalizationForm `json:"translation"`
+	Plural      bool               `json:"plural"`
+}
+
+type LocalizationFileRequest struct {
+	Path   string             `json:"path"`
+	Format LocalizationFormat `json:"format"`
+}
+
+type LocalizationFile struct {
+	Path        string              `json:"path"`
+	Name        string              `json:"name"`
+	Format      LocalizationFormat  `json:"format"`
+	Fingerprint string              `json:"fingerprint"`
+	Entries     []LocalizationEntry `json:"entries"`
+}
+
+type LocalizationTranslationRequest struct {
+	OperationID string             `json:"operationId"`
+	Path        string             `json:"path"`
+	Format      LocalizationFormat `json:"format"`
+	Fingerprint string             `json:"fingerprint"`
+	Language    string             `json:"language"`
+	EntryIDs    []string           `json:"entryIds"`
+}
+
+type LocalizationTranslationResult struct {
+	Entries    []LocalizationEntry `json:"entries"`
+	Translated int                 `json:"translated"`
+	Failed     int                 `json:"failed"`
+	Total      int                 `json:"total"`
+}
+
+type UntranslatedExportMode string
+
+const (
+	UntranslatedExportSource UntranslatedExportMode = "source"
+	UntranslatedExportEmpty  UntranslatedExportMode = "empty"
+)
+
+type LocalizationSaveRequest struct {
+	Path             string                 `json:"path"`
+	Format           LocalizationFormat     `json:"format"`
+	Fingerprint      string                 `json:"fingerprint"`
+	Language         string                 `json:"language"`
+	Entries          []LocalizationEntry    `json:"entries"`
+	UntranslatedMode UntranslatedExportMode `json:"untranslatedMode"`
+}
+
+type LocalizationSaveResult struct {
+	Path string `json:"path"`
+}
+
+// LocalizationProgress is sent on the localization:progress Wails event.
+// Translation text stays in memory and is delivered only to the local UI.
+type LocalizationProgress struct {
+	OperationID string             `json:"operationId"`
+	EntryID     string             `json:"entryId,omitempty"`
+	Status      string             `json:"status"`
+	Completed   int                `json:"completed"`
+	Total       int                `json:"total"`
+	Entry       *LocalizationEntry `json:"entry,omitempty"`
+	Error       string             `json:"error,omitempty"`
 }
 type HuggingFaceModel struct {
 	ID           string   `json:"id"`
