@@ -1,0 +1,21 @@
+import { useEffect, useState } from "react";
+import { Check, Copy, Languages, Loader2 } from "lucide-react";
+import type { FileSelection } from "@/types/api";
+import { api } from "@/lib/bridge";
+import { FilePicker } from "./FilePicker";
+import { LanguageSelect } from "./LanguageSelect";
+
+export function ImageTranslator({ dropPath }: { dropPath?: string }) {
+  const [file, setFile] = useState<FileSelection | null>(null); const [language, setLanguage] = useState("en"); const [result, setResult] = useState<{ original: string; translation: string } | null>(null); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [copied, setCopied] = useState(false);
+  const select = async (path?: string) => { try { const value = path ? await api.loadFile(path, "image") : await api.pickFile("image"); if (!value.path) return; setFile(value); setResult(null); setError(""); } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not read image"); } };
+  useEffect(() => { if (dropPath) void select(dropPath); }, [dropPath]);
+  const translate = async () => { if (!file || !language) return; setBusy(true); setError(""); try { setResult(await api.image(file.path, language)); } catch (reason) { setError(reason instanceof Error ? reason.message : "Image translation failed"); } finally { setBusy(false); } };
+  const copy = async () => { if (!result) return; await navigator.clipboard.writeText(result.translation); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+  return <div className="desktop-workspace h-full min-h-[30rem] grid-cols-1 md:grid-cols-[.9fr_1.1fr]"><section className="desktop-pane flex min-h-72 flex-col p-4"><FilePicker kind="image" selection={file} onPick={() => void select()} onClear={() => { setFile(null); setResult(null); }} />{file?.previewUrl && <img src={file.previewUrl} alt="Selected image" className="mt-4 min-h-0 flex-1 rounded-lg border object-contain" />}</section><section className="desktop-pane flex min-h-72 flex-col"><header className="flex h-11 items-center justify-between gap-2 border-b px-1"><LanguageSelect value={language} onChange={setLanguage} /><div className="flex items-center gap-1 pr-1"><button onClick={copy} disabled={!result} className="app-button app-button-secondary">{copied ? <Check className="size-4" /> : <Copy className="size-4" />}</button><button onClick={translate} disabled={!file || !language || busy} className="app-button app-button-primary">{busy ? <Loader2 className="size-4 animate-spin" /> : <Languages className="size-4" />}{busy ? "Working" : "Translate"}</button></div></header><div className="min-h-52 flex-1 overflow-auto">{busy ? <Loading label="Extracting and translating image…" /> : error ? <ErrorMessage message={error} /> : result ? <Comparison original={result.original} translated={result.translation} /> : <Empty text="Upload an image to extract and translate its text." />}</div></section></div>;
+}
+
+export function Comparison({ original, translated }: { original: string; translated: string }) { return <div className="grid h-full grid-cols-2"><div className="min-w-0 border-r p-4"><Header text="Original" /><p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">{original}</p></div><div className="min-w-0 p-4"><Header text="Translation" /><p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{translated}</p></div></div>; }
+export function Header({ text }: { text: string }) { return <span className="mb-2 block font-mono text-[.65rem] font-semibold uppercase tracking-wide text-muted-foreground">{text}</span>; }
+export function Empty({ text }: { text: string }) { return <div className="flex h-full items-center justify-center p-8 text-center text-sm text-muted-foreground">{text}</div>; }
+export function Loading({ label }: { label: string }) { return <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground"><Loader2 className="size-5 animate-spin" />{label}</div>; }
+export function ErrorMessage({ message }: { message: string }) { return <div className="flex h-full items-center justify-center p-8 text-center"><div><p className="font-medium text-destructive">Operation failed</p><p className="mt-1 max-w-md text-sm text-muted-foreground">{message}</p></div></div>; }
