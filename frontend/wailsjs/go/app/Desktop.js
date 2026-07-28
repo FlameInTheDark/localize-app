@@ -22,6 +22,10 @@ export function ExtractImageText(arg1) {
   return window['go']['app']['Desktop']['ExtractImageText'](arg1);
 }
 
+export function GetApplicationVersion() {
+  return window['go']['app']['Desktop']['GetApplicationVersion']();
+}
+
 export function GetDefaultPrompts() {
   return window['go']['app']['Desktop']['GetDefaultPrompts']();
 }
@@ -48,6 +52,10 @@ export function GetSettings() {
 
 export function GetTranslationVariants(arg1) {
   return window['go']['app']['Desktop']['GetTranslationVariants'](arg1);
+}
+
+export function GetUpdateAvailability() {
+  return window['go']['app']['Desktop']['GetUpdateAvailability']();
 }
 
 export function GetWhisperCppRuntimeStatus() {
@@ -108,6 +116,10 @@ export function ListWhisperModels() {
 
 export function LoadFile(arg1, arg2) {
   return window['go']['app']['Desktop']['LoadFile'](arg1, arg2);
+}
+
+export function OpenLatestRelease() {
+  return window['go']['app']['Desktop']['OpenLatestRelease']();
 }
 
 export function OpenOllamaCatalog() {

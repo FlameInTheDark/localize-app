@@ -1,13 +1,16 @@
 import * as Desktop from "../../wailsjs/go/app/Desktop";
-import type { DocumentRequest, HuggingFaceFile, HuggingFaceInstallRequest, HuggingFaceModel, ImageResult, ModelInfo, ProviderStatus, Settings, FileSelection, DocumentResult, PromptSettings, TranslationVariantsRequest, TranslationVariantsResult, LlamaCppRelease, LlamaCppRuntimeInstallRequest, LlamaCppRuntimeStatus, MuPDFRelease, MuPDFRuntimeInstallRequest, MuPDFRuntimeStatus, WhisperCppRelease, WhisperCppRuntimeInstallRequest, WhisperCppRuntimeStatus, WhisperModel, WhisperModelInstallRequest, WhisperStatus, AudioTranscriptionRequest, CapturedAudioTranscriptionRequest, AudioTranscriptionResult } from "./contracts";
+import type { DocumentRequest, HuggingFaceFile, HuggingFaceInstallRequest, HuggingFaceModel, ImageResult, ModelInfo, ProviderStatus, Settings, FileSelection, DocumentResult, PromptSettings, TranslationVariantsRequest, TranslationVariantsResult, LlamaCppRelease, LlamaCppRuntimeInstallRequest, LlamaCppRuntimeStatus, MuPDFRelease, MuPDFRuntimeInstallRequest, MuPDFRuntimeStatus, WhisperCppRelease, WhisperCppRuntimeInstallRequest, WhisperCppRuntimeStatus, WhisperModel, WhisperModelInstallRequest, WhisperStatus, AudioTranscriptionRequest, CapturedAudioTranscriptionRequest, AudioTranscriptionResult, UpdateAvailability } from "./contracts";
 
 // The generated bindings own the transport. These narrow casts keep React tied
 // to stable feature contracts instead of Wails generator class implementations.
 export const api = {
   getSettings: () => Desktop.GetSettings() as unknown as Promise<Settings>,
+  applicationVersion: () => Desktop.GetApplicationVersion(),
   defaultPrompts: () => Desktop.GetDefaultPrompts() as unknown as Promise<PromptSettings>,
   saveSettings: (value: Settings) => Desktop.SaveSettings(value as never),
   providerStatus: () => Desktop.GetProviderStatus() as unknown as Promise<ProviderStatus>,
+  updateAvailability: () => Desktop.GetUpdateAvailability() as unknown as Promise<UpdateAvailability>,
+  openLatestRelease: () => Desktop.OpenLatestRelease(),
   activeModels: () => Desktop.ListActiveProviderModels() as unknown as Promise<ModelInfo[]>,
   ollamaModels: () => Desktop.ListOllamaModels() as unknown as Promise<ModelInfo[]>,
   pullOllama: (model: string) => Desktop.PullOllamaModel(model),

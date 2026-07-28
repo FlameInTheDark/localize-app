@@ -14,6 +14,7 @@ type WhisperModelAssignment = domain.WhisperModelAssignment
 type Settings = domain.Settings
 type PromptSettings = domain.PromptSettings
 type ProviderStatus = domain.ProviderStatus
+type UpdateAvailability = domain.UpdateAvailability
 type ModelInfo = domain.ModelInfo
 type OperationProgress = domain.OperationProgress
 type FileSelection = domain.FileSelection

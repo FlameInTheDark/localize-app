@@ -14,8 +14,12 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// appVersion is replaced with the semantic release tag in production builds.
+// Development builds intentionally skip remote update checks.
+var appVersion = "dev"
+
 func main() {
-	desktop, err := app.New()
+	desktop, err := app.New(appVersion)
 	if err != nil {
 		log.Fatal(err)
 	}

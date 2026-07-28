@@ -232,6 +232,7 @@ func startManagedProcess(binary string, args []string) (*managedProcess, error) 
 	output := &processOutput{}
 	command := exec.Command(binary, args...)
 	command.Dir = filepath.Dir(binary)
+	configureHiddenChildProcess(command)
 	command.Stdout = io.MultiWriter(os.Stderr, output)
 	command.Stderr = io.MultiWriter(os.Stderr, output)
 	if err := command.Start(); err != nil {

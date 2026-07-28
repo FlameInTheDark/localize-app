@@ -15,6 +15,7 @@ export interface WhisperModelAssignment { id: string; path?: string; }
 export interface PromptSettings { translation: string; detection: string; ocr: string; wordVariants: string; }
 export interface ModelInfo { id: string; name: string; path?: string; projectionPath?: string; size: number; modifiedAt?: string; family?: string; parameters?: string; quantization?: string; supportsVision: boolean; running: boolean; }
 export interface ProviderStatus { provider: ProviderKind; available: boolean; running: boolean; message: string; models: ModelInfo[]; }
+export interface UpdateAvailability { available: boolean; version: string; url: string; }
 export interface FileSelection { path: string; name: string; size: number; mimeType: string; previewUrl?: string; }
 export interface ImageResult { original: string; translation: string; }
 export interface DocumentSegment { ordinal: number; original: string; translation: string; }

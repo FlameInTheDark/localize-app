@@ -103,6 +103,14 @@ type ProviderStatus struct {
 	Message   string       `json:"message"`
 	Models    []ModelInfo  `json:"models"`
 }
+
+// UpdateAvailability identifies a newer Localize release for the desktop title bar.
+type UpdateAvailability struct {
+	Available bool   `json:"available"`
+	Version   string `json:"version"`
+	URL       string `json:"url"`
+}
+
 type ModelInfo struct {
 	ID             string `json:"id"`
 	Name           string `json:"name"`

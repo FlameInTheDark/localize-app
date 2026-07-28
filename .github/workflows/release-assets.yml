@@ -82,7 +82,7 @@ jobs:
         if: steps.release.outputs.has_release == 'true'
         run: >-
           go run github.com/wailsapp/wails/v2/cmd/wails@v2.12.0 build
-          -platform windows/amd64 -nsis -trimpath -ldflags "-s -w"
+          -platform windows/amd64 -nsis -trimpath -ldflags "-s -w -X main.appVersion=${{ steps.release.outputs.tag }}"
 
       - name: Find release artifacts
         if: steps.release.outputs.has_release == 'true'

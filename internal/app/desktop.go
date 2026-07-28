@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	llamaruntime "github.com/FlameInTheDark/localize-app/internal/runtime"
 	"github.com/FlameInTheDark/localize-app/internal/settings"
 	"github.com/FlameInTheDark/localize-app/internal/translation"
+	"github.com/FlameInTheDark/localize-app/internal/updatecheck"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -30,22 +32,27 @@ const maxAudioSize = 1024 * 1024 * 1024
 const maxCapturedAudioSize = 40 * 1024 * 1024
 
 type Desktop struct {
-	ctx             context.Context
-	store           *settings.Store
-	operations      *operations.Hub
-	llama           *llamaruntime.LlamaManager
-	runtimes        *llamaruntime.LlamaCatalog
-	whisper         *llamaruntime.WhisperRunner
-	whisperRuntimes *llamaruntime.WhisperCatalog
-	mupdf           *llamaruntime.MuPDFCatalog
-	hf              *catalog.HuggingFace
-	whisperModels   *catalog.WhisperModels
-	whisperTempRoot string
-	translate       *translation.Service
-	sequence        atomic.Uint64
+	ctx                context.Context
+	store              *settings.Store
+	operations         *operations.Hub
+	llama              *llamaruntime.LlamaManager
+	runtimes           *llamaruntime.LlamaCatalog
+	whisper            *llamaruntime.WhisperRunner
+	whisperRuntimes    *llamaruntime.WhisperCatalog
+	mupdf              *llamaruntime.MuPDFCatalog
+	hf                 *catalog.HuggingFace
+	whisperModels      *catalog.WhisperModels
+	whisperTempRoot    string
+	translate          *translation.Service
+	applicationVersion string
+	sequence           atomic.Uint64
+	updates            updateChecker
+	updateMu           sync.RWMutex
+	update             UpdateAvailability
+	updateCancel       context.CancelFunc
 }
 
-func New() (*Desktop, error) {
+func New(applicationVersion string) (*Desktop, error) {
 	dataRoot, err := localDataRoot()
 	if err != nil {
 		return nil, fmt.Errorf("find application data directory: %w", err)
@@ -63,7 +70,7 @@ func New() (*Desktop, error) {
 	if err := os.RemoveAll(whisperTempRoot); err != nil {
 		return nil, fmt.Errorf("clean previous Whisper temporary files: %w", err)
 	}
-	desktop := &Desktop{store: store, operations: operationsHub, llama: llamaruntime.NewLlamaManager(runtimeDir, operationsHub), runtimes: llamaruntime.NewLlamaCatalog(runtimeDir, operationsHub), whisper: llamaruntime.NewWhisperRunner(whisperRuntimeDir, whisperTempRoot, operationsHub), whisperRuntimes: llamaruntime.NewWhisperCatalog(whisperRuntimeDir, operationsHub), mupdf: llamaruntime.NewMuPDFCatalog(mupdfRuntimeDir, operationsHub), hf: catalog.NewHuggingFace(operationsHub), whisperModels: catalog.NewWhisperModels(operationsHub), whisperTempRoot: whisperTempRoot}
+	desktop := &Desktop{store: store, operations: operationsHub, llama: llamaruntime.NewLlamaManager(runtimeDir, operationsHub), runtimes: llamaruntime.NewLlamaCatalog(runtimeDir, operationsHub), whisper: llamaruntime.NewWhisperRunner(whisperRuntimeDir, whisperTempRoot, operationsHub), whisperRuntimes: llamaruntime.NewWhisperCatalog(whisperRuntimeDir, operationsHub), mupdf: llamaruntime.NewMuPDFCatalog(mupdfRuntimeDir, operationsHub), hf: catalog.NewHuggingFace(operationsHub), whisperModels: catalog.NewWhisperModels(operationsHub), whisperTempRoot: whisperTempRoot, applicationVersion: applicationVersion, updates: updatecheck.NewChecker(updatecheck.NewGitHubSource(nil), applicationVersion)}
 	desktop.translate = translation.New(desktop.inferenceClient, func() PromptSettings { return desktop.store.Get().Prompts })
 	return desktop, nil
 }
@@ -71,9 +78,13 @@ func New() (*Desktop, error) {
 func (d *Desktop) Startup(ctx context.Context) {
 	d.ctx = ctx
 	d.operations.SetEmitter(func(progress OperationProgress) { wailsruntime.EventsEmit(ctx, "operation:progress", progress) })
+	d.startUpdateChecks()
 }
 
-func (d *Desktop) Shutdown(context.Context) { d.llama.Stop() }
+func (d *Desktop) Shutdown(context.Context) {
+	d.stopUpdateChecks()
+	d.llama.Stop()
+}
 func (d *Desktop) SecondInstance(options.SecondInstanceData) {
 	if d.ctx != nil {
 		wailsruntime.WindowUnminimise(d.ctx)
@@ -83,6 +94,10 @@ func (d *Desktop) SecondInstance(options.SecondInstanceData) {
 
 func (d *Desktop) GetSettings() Settings             { return d.store.Get() }
 func (d *Desktop) GetDefaultPrompts() PromptSettings { return DefaultPromptSettings() }
+
+// GetApplicationVersion returns the version embedded in this Localize build.
+func (d *Desktop) GetApplicationVersion() string { return d.applicationVersion }
+
 func (d *Desktop) SaveSettings(next Settings) error {
 	if next.ActiveProvider != ProviderOllama && next.ActiveProvider != ProviderLlamaCpp {
 		return fmt.Errorf("unknown inference provider")
@@ -201,6 +216,24 @@ func (d *Desktop) DeleteOllamaModel(id string) error {
 
 func (d *Desktop) OpenOllamaCatalog() {
 	wailsruntime.BrowserOpenURL(d.context(), "https://ollama.com/search")
+}
+
+// GetUpdateAvailability returns a newer release found by the background checker.
+func (d *Desktop) GetUpdateAvailability() UpdateAvailability {
+	d.updateMu.RLock()
+	defer d.updateMu.RUnlock()
+	return d.update
+}
+
+// OpenLatestRelease opens the latest available Localize release page.
+func (d *Desktop) OpenLatestRelease() {
+	d.updateMu.RLock()
+	url := d.update.URL
+	d.updateMu.RUnlock()
+	if url == "" {
+		url = localizeReleasesURL
+	}
+	wailsruntime.BrowserOpenURL(d.context(), url)
 }
 func (d *Desktop) SearchHuggingFaceModels(query string) ([]HuggingFaceModel, error) {
 	return d.hf.Search(d.context(), query)

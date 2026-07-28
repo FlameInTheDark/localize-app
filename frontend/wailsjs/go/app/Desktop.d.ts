@@ -13,6 +13,8 @@ export function DetectLanguage(arg1:string):Promise<Array<string>>;
 
 export function ExtractImageText(arg1:string):Promise<string>;
 
+export function GetApplicationVersion():Promise<string>;
+
 export function GetDefaultPrompts():Promise<domain.PromptSettings>;
 
 export function GetHuggingFaceFiles(arg1:string):Promise<Array<domain.HuggingFaceFile>>;
@@ -26,6 +28,8 @@ export function GetProviderStatus():Promise<domain.ProviderStatus>;
 export function GetSettings():Promise<domain.Settings>;
 
 export function GetTranslationVariants(arg1:domain.TranslationVariantsRequest):Promise<domain.TranslationVariantsResult>;
+
+export function GetUpdateAvailability():Promise<domain.UpdateAvailability>;
 
 export function GetWhisperCppRuntimeStatus():Promise<domain.WhisperCppRuntimeStatus>;
 
@@ -56,6 +60,8 @@ export function ListWhisperCppReleases():Promise<Array<domain.WhisperCppRelease>
 export function ListWhisperModels():Promise<Array<domain.WhisperModel>>;
 
 export function LoadFile(arg1:string,arg2:string):Promise<domain.FileSelection>;
+
+export function OpenLatestRelease():Promise<void>;
 
 export function OpenOllamaCatalog():Promise<void>;
 
