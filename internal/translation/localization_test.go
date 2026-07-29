@@ -13,7 +13,7 @@ import (
 func TestTranslateLocalizedPreservesProtectedTokens(t *testing.T) {
 	client := &recordingClient{response: "Привет {{name}} <b>%d</b>"}
 	service := New(func(context.Context, bool) (inference.Client, string, error) { return client, "test", nil }, func() domain.PromptSettings { return domain.DefaultPromptSettings() })
-	forms, err := service.TranslateLocalized(context.Background(), []domain.LocalizationForm{{Category: "other", Text: "Hello {{name}} <b>%d</b>"}}, []string{"other"}, "ru", "")
+	forms, err := service.TranslateLocalized(context.Background(), []domain.LocalizationForm{{Category: "other", Text: "Hello {{name}} <b>%d</b>"}}, []string{"other"}, "ru", "", "")
 	if err != nil || len(forms) != 1 || forms[0].Text != "Привет {{name}} <b>%d</b>" {
 		t.Fatalf("unexpected translation: %#v, %v", forms, err)
 	}
@@ -26,7 +26,7 @@ func TestTranslateLocalizedRejectsBrokenPlaceholder(t *testing.T) {
 	service := New(func(context.Context, bool) (inference.Client, string, error) {
 		return fakeClient{response: "Привет"}, "test", nil
 	}, func() domain.PromptSettings { return domain.DefaultPromptSettings() })
-	_, err := service.TranslateLocalized(context.Background(), []domain.LocalizationForm{{Category: "other", Text: "Hello {{name}}"}}, []string{"other"}, "ru", "")
+	_, err := service.TranslateLocalized(context.Background(), []domain.LocalizationForm{{Category: "other", Text: "Hello {{name}}"}}, []string{"other"}, "ru", "", "")
 	if err == nil || !strings.Contains(err.Error(), "placeholder") {
 		t.Fatalf("expected placeholder validation error, got %v", err)
 	}
@@ -39,7 +39,7 @@ func TestTranslateLocalizedSkipsEmptySource(t *testing.T) {
 		return fakeClient{}, "test", nil
 	}, func() domain.PromptSettings { return domain.DefaultPromptSettings() })
 
-	forms, err := service.TranslateLocalized(context.Background(), []domain.LocalizationForm{{Category: "other", Text: " \r\n\t"}}, []string{"one", "other"}, "ru", "")
+	forms, err := service.TranslateLocalized(context.Background(), []domain.LocalizationForm{{Category: "other", Text: " \r\n\t"}}, []string{"one", "other"}, "ru", "", "")
 	if err != nil {
 		t.Fatalf("TranslateLocalized returned an error: %v", err)
 	}
@@ -55,11 +55,25 @@ func TestTranslateLocalizedSkipsEmptySource(t *testing.T) {
 func TestTranslateLocalizedIncludesConfirmedSourceLanguage(t *testing.T) {
 	client := &recordingClient{response: "Привет"}
 	service := New(func(context.Context, bool) (inference.Client, string, error) { return client, "test", nil }, func() domain.PromptSettings { return domain.DefaultPromptSettings() })
-	_, err := service.TranslateLocalized(context.Background(), []domain.LocalizationForm{{Category: "other", Text: "Hello"}}, []string{"other"}, "ru", "en")
+	_, err := service.TranslateLocalized(context.Background(), []domain.LocalizationForm{{Category: "other", Text: "Hello"}}, []string{"other"}, "ru", "en", "")
 	if err != nil {
 		t.Fatalf("TranslateLocalized returned an error: %v", err)
 	}
 	if !strings.Contains(client.request.System, "source text has been confirmed as en") {
 		t.Fatalf("source-language constraint was not sent: %#v", client.request)
+	}
+}
+
+func TestTranslateLocalizedIncludesAdditionalRulesBeforeSafetyConstraints(t *testing.T) {
+	client := &recordingClient{response: "Энтони"}
+	service := New(func(context.Context, bool) (inference.Client, string, error) { return client, "test", nil }, func() domain.PromptSettings { return domain.DefaultPromptSettings() })
+	_, err := service.TranslateLocalized(context.Background(), []domain.LocalizationForm{{Category: "other", Text: "Anthony"}}, []string{"other"}, "ru", "", "Render the name Anthony as Энтони. Leave alien speech unchanged.")
+	if err != nil {
+		t.Fatalf("TranslateLocalized returned an error: %v", err)
+	}
+	rules := strings.Index(client.request.System, "Render the name Anthony as Энтони")
+	constraints := strings.Index(client.request.System, "Localization constraints")
+	if rules < 0 || constraints < 0 || rules > constraints {
+		t.Fatalf("rules were not placed before the required localization constraints: %#v", client.request)
 	}
 }

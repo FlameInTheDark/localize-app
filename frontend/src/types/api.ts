@@ -25,7 +25,7 @@ export interface LocalizationForm { category: string; text: string; }
 export interface LocalizationEntry { id: string; key: string; source: LocalizationForm[]; translation: LocalizationForm[]; plural: boolean; }
 export interface LocalizationFileRequest { path: string; format: LocalizationFormat; }
 export interface LocalizationFile { path: string; name: string; format: LocalizationFormat; fingerprint: string; entries: LocalizationEntry[]; }
-export interface LocalizationTranslationRequest { operationId: string; path: string; format: LocalizationFormat; fingerprint: string; language: string; sourceLanguage: string; entryIds: string[]; }
+export interface LocalizationTranslationRequest { operationId: string; path: string; format: LocalizationFormat; fingerprint: string; language: string; sourceLanguage: string; rules: string; entryIds: string[]; }
 export interface LocalizationTranslationResult { entries: LocalizationEntry[]; translated: number; skipped: number; failed: number; total: number; }
 export type UntranslatedExportMode = "source" | "empty";
 export interface LocalizationSaveRequest { path: string; format: LocalizationFormat; fingerprint: string; language: string; entries: LocalizationEntry[]; untranslatedMode: UntranslatedExportMode; }

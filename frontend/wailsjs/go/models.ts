@@ -562,6 +562,7 @@ export namespace domain {
 	    fingerprint: string;
 	    language: string;
 	    sourceLanguage: string;
+	    rules: string;
 	    entryIds: string[];
 	
 	    static createFrom(source: any = {}) {
@@ -576,6 +577,7 @@ export namespace domain {
 	        this.fingerprint = source["fingerprint"];
 	        this.language = source["language"];
 	        this.sourceLanguage = source["sourceLanguage"];
+	        this.rules = source["rules"];
 	        this.entryIds = source["entryIds"];
 	    }
 	}

@@ -494,7 +494,7 @@ func (d *Desktop) TranslateLocalizationEntries(request LocalizationTranslationRe
 			}
 		}
 		d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "translating", Completed: index, Total: len(ids)})
-		translated, translateErr := d.translate.TranslateLocalized(d.context(), entry.Source, categories, request.Language, sourceLanguage)
+		translated, translateErr := d.translate.TranslateLocalized(d.context(), entry.Source, categories, request.Language, sourceLanguage, request.Rules)
 		if translateErr != nil {
 			result.Failed++
 			d.emitLocalizationProgress(LocalizationProgress{OperationID: request.OperationID, EntryID: id, Status: "failed", Completed: index + 1, Total: len(ids), Error: translateErr.Error()})

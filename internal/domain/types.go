@@ -335,6 +335,7 @@ type LocalizationTranslationRequest struct {
 	Fingerprint    string             `json:"fingerprint"`
 	Language       string             `json:"language"`
 	SourceLanguage string             `json:"sourceLanguage"`
+	Rules          string             `json:"rules"`
 	EntryIDs       []string           `json:"entryIds"`
 }
 

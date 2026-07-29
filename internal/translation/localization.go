@@ -18,7 +18,7 @@ const localizationConstraint = "\nLocalization constraints: return only translat
 // TranslateLocalized translates one ordinary message or one plural message
 // group. Plural calls use the providers' existing structured-output support so
 // the target forms cannot be lost or reordered.
-func (s *Service) TranslateLocalized(ctx context.Context, source []domain.LocalizationForm, targetCategories []string, language, sourceLanguage string) ([]domain.LocalizationForm, error) {
+func (s *Service) TranslateLocalized(ctx context.Context, source []domain.LocalizationForm, targetCategories []string, language, sourceLanguage, rules string) ([]domain.LocalizationForm, error) {
 	if len(source) == 0 || strings.TrimSpace(language) == "" {
 		return nil, fmt.Errorf("source text and target language are required")
 	}
@@ -33,7 +33,7 @@ func (s *Service) TranslateLocalized(ctx context.Context, source []domain.Locali
 		return nil, err
 	}
 	for attempt := 0; attempt < 2; attempt++ {
-		forms, err := s.localizedAttempt(ctx, client, model, source, targetCategories, language, sourceLanguage, attempt > 0)
+		forms, err := s.localizedAttempt(ctx, client, model, source, targetCategories, language, sourceLanguage, rules, attempt > 0)
 		if err == nil && validLocalizedForms(source, forms) {
 			return forms, nil
 		}
@@ -64,11 +64,15 @@ func emptyLocalizedForms(categories []string) []domain.LocalizationForm {
 	return forms
 }
 
-func (s *Service) localizedAttempt(ctx context.Context, client inference.Client, model string, source []domain.LocalizationForm, targetCategories []string, language, sourceLanguage string, recovery bool) ([]domain.LocalizationForm, error) {
-	system := s.promptSettings().TranslationFor(language) + localizationConstraint
+func (s *Service) localizedAttempt(ctx context.Context, client inference.Client, model string, source []domain.LocalizationForm, targetCategories []string, language, sourceLanguage, rules string, recovery bool) ([]domain.LocalizationForm, error) {
+	system := s.promptSettings().TranslationFor(language)
 	if sourceLanguage = strings.TrimSpace(sourceLanguage); sourceLanguage != "" && sourceLanguage != "auto" {
 		system += "\nSource-language constraint: the source text has been confirmed as " + sourceLanguage + ". Translate from that language only."
 	}
+	if rules = strings.TrimSpace(rules); rules != "" {
+		system += "\nAdditional localization context and rules:\n" + rules
+	}
+	system += localizationConstraint
 	if recovery {
 		system += "\nThe previous output was invalid. Copy every protected token exactly and return the complete requested result."
 	}
